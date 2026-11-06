@@ -23,3 +23,89 @@
 .filter-selector:focus-within{outline:2px solid #a3b889;outline-offset:6px;border-radius:8px}
 .filter-selector.is-disabled{opacity:.5;cursor:default}
 .filter-selector.is-disabled select{cursor:default}
+
+/* Illustrated frames share the exact bounds of the exported photo crop. */
+.frame-guide.has-art{opacity:1;z-index:2}
+.frame-guide.has-art i{opacity:.35}
+.food-frame-art{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
+.frame-options{position:absolute;z-index:4;top:88px;left:28px;display:flex;align-items:flex-start;flex-direction:column;gap:8px}
+.frame-options-label{font-size:7px;letter-spacing:1.8px;color:#c5ccbc}
+.frame-options-buttons{display:flex;gap:4px;padding:4px;border:1px solid #e5e7db22;border-radius:30px;background:#20261eaa;backdrop-filter:blur(16px)}
+.frame-options-buttons button{display:flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:8px 14px;border-radius:24px;background:transparent;color:#bdc5b1;font-size:10px}
+.frame-options-buttons button[aria-pressed=true]{background:#e5e9d9;color:#37412e;box-shadow:0 1px 5px #0001}
+.frame-options-buttons button:disabled{cursor:default;opacity:.65}
+.frame-options-hint{font-size:8px;line-height:1.5;color:#b1bca4;max-width:245px;text-shadow:0 1px 6px #0008}
+@media(max-width:700px){.frame-options{top:calc(env(safe-area-inset-top) + 134px);left:50%;transform:translateX(-50%);align-items:center;width:max-content;max-width:calc(100% - 32px)}.frame-options-label{display:none}.frame-options-buttons button{min-height:34px;font-size:10px;padding:8px 15px}.frame-options-hint{font-size:8px;text-align:center}.frame-guide.has-art{top:45%}.camera-welcome{padding-top:32px}}
+@media(max-height:740px) and (max-width:700px){.frame-options{top:calc(env(safe-area-inset-top) + 123px)}.frame-options-hint{display:none}.frame-options-buttons button{min-height:30px;padding:6px 12px}.camera-welcome .camera-emblem{display:none}.camera-welcome{padding-top:43px}.frame-guide.has-art{top:44%}}
+/* Leave room above and below the artwork for the frame picker and shutter. */
+.frame-guide.has-art{top:calc(50% - 5px);left:0;right:0;width:min(80%,calc((100svh - 420px) * 4 / 3));max-width:720px;transform:translateY(-50%)}
+@media(max-width:700px){.frame-guide.has-art{width:min(calc(100% - 44px),calc((100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 420px) * 4 / 3))}}
+
+/* The entire camera surface is now the composition, on desktop and phone. */
+.frame-guide,.frame-guide.has-art{inset:0;width:100%;height:100%;max-width:none;margin:0;aspect-ratio:auto;transform:none;opacity:1;z-index:2}
+.frame-guide i{opacity:0}
+.food-frame-art{display:block;width:100%;height:100%}
+@media(max-width:700px){
+  .booth{display:flex;align-items:center;justify-content:center;min-height:100svh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);background:#1c211c}
+  .viewfinder{width:min(100vw,calc((100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 9 / 16));height:auto;min-height:0;aspect-ratio:9/16;flex-shrink:0}
+  .camera-header{padding:21px 20px 15px}
+  .camera-label{top:78px}
+  .shot-progress{top:105px}
+  .frame-options{top:125px}
+  .frame-guide,.frame-guide.has-art{inset:0;width:100%;height:100%;max-width:none;transform:none;aspect-ratio:auto}
+  .camera-bottom{bottom:24px}
+  .camera-controls{gap:clamp(20px,8vw,48px)}
+  .camera-welcome{inset:174px 24px 202px;padding-top:0}
+  .camera-welcome .camera-emblem{display:none}
+  .camera-welcome .eyebrow{display:none}
+  .camera-welcome h2{font-size:32px}
+  .notice{bottom:12px}
+  .is-result{display:block;padding:0;background:var(--paper)}
+  .result-view{width:100%;height:100svh;aspect-ratio:auto;overflow-y:auto}
+  .result-content{padding-top:calc(env(safe-area-inset-top) + 119px)}
+  .result-view .camera-header{padding-top:calc(env(safe-area-inset-top) + 21px)}
+  .result-view .camera-label{top:calc(env(safe-area-inset-top) + 78px)}
+}
+@media(max-height:740px) and (max-width:700px){
+  .camera-welcome{inset:160px 20px 175px}
+  .frame-options{top:117px}
+  .camera-bottom{bottom:18px}
+  .frame-options-hint{display:none}
+  .camera-welcome h2{font-size:27px}
+  .pose-hint{margin-bottom:14px}
+  .capture-description{font-size:7px}
+}
+.camera-header{background:linear-gradient(#10170f88,transparent);text-shadow:0 1px 8px #000a}
+.camera-header .camera-label{margin-inline:auto}
+.frame-options{left:50%;transform:translateX(-50%);align-items:center;width:max-content;max-width:calc(100% - 32px)}
+.frame-options-hint{text-align:center}
+.filter-selector,.photo-counter{width:64px;background:#17211785;backdrop-filter:blur(8px);border-radius:12px}
+.result-view .camera-header{background:none;text-shadow:none}
+
+/* Open directly in the camera; no introduction sidebar or white outer canvas. */
+html,body{background:#1c211c}
+.booth{display:block;max-width:none;width:100%;padding:0;gap:0;background:#1c211c}
+.viewfinder{width:100%;height:100svh;min-height:0;border-radius:0}
+.mobile-brand{display:block;font:23px var(--serif);letter-spacing:-.6px}
+.mobile-brand>span{font:8px var(--sans);vertical-align:super;margin-left:2px}
+.frame-guide.has-art i{display:none}
+@media(max-width:700px){
+  .booth{display:flex;align-items:center;justify-content:center;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+  .viewfinder{width:min(100vw,calc((100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 9 / 16));height:auto;aspect-ratio:9/16}
+  .frame-options-buttons button{padding-inline:12px}
+  .is-result{display:block;padding:0;background:#1c211c}
+  .result-view{width:100%;height:100svh;aspect-ratio:auto}
+}
+.meme-entry{display:flex;align-items:center;justify-content:center;gap:9px;border:1px solid #c7d8ae55;background:#e4edda12;backdrop-filter:blur(12px);color:#e0ebd3;border-radius:30px;padding:9px 17px;min-height:38px;font-size:11px;margin-bottom:6px;white-space:nowrap;text-shadow:0 1px 8px #0005}
+.meme-entry>span:first-child{font-size:9px;color:#b9cfa3}
+.meme-entry>span:last-child{font-size:15px;color:#d6e6c3}
+.meme-entry:hover{background:#e4edda25}
+@media(max-width:700px){.meme-entry{padding:8px 14px;min-height:34px;font-size:10px;margin-bottom:4px}.frame-options{top:122px}}
+.shot-mode{display:flex;gap:4px;align-items:center;justify-content:center;border:1px solid #a7ba9040;background:#1c251cbd;backdrop-filter:blur(12px);border-radius:30px;padding:4px}
+.shot-mode button{min-height:31px;padding:6px 12px;border-radius:24px;background:transparent;color:#b5c8a5;font-size:9px;white-space:nowrap}
+.shot-mode button[aria-pressed=true]{background:#e0ebd5;color:#35492b}
+.shot-mode button:disabled{opacity:.65}
+.camera-bottom>.shot-mode{margin-bottom:17px}
+.frame-options-buttons{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.frame-options-buttons::-webkit-scrollbar{display:none}
+.frame-options-buttons button{flex-shrink:0}

@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { makeStrip, PHOTO_COUNT, takePhoto } from "./photo";
+import Link from "next/link";
+import { makePhotoOutput, takePhoto } from "./photo";
+import FrameOverlay from "./frame-overlay";
+import { PHOTO_FRAMES, type FrameStyle } from "./frame";
 
 type CameraStatus = "idle" | "requesting" | "ready" | "denied" | "unavailable";
 type Screen = "camera" | "result";
@@ -27,21 +30,54 @@ export default function PhotoBooth() {
   const [capturing, setCapturing] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [shot, setShot] = useState(0);
+  const [shotCount, setShotCount] = useState<1 | 4>(1);
   const [photos, setPhotos] = useState<string[]>([]);
   const [flash, setFlash] = useState(false);
   const [monochrome, setMonochrome] = useState(false);
+  const [frameStyle, setFrameStyle] = useState<FrameStyle>("pig");
+  const [frameReady, setFrameReady] = useState(false);
+  const [frameError, setFrameError] = useState(false);
   const [stripUrl, setStripUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [help, setHelp] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const guideRef = useRef<HTMLDivElement>(null);
+  const frameImageRef = useRef<HTMLImageElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<File | null>(null);
   const operation = useRef(0);
   const busyRef = useRef(false);
   const requestingRef = useRef(false);
   const mountedRef = useRef(true);
+  const selectedFrame = PHOTO_FRAMES.find(frame => frame.id === frameStyle)!;
+
+  function chooseFrame(style: FrameStyle) {
+    if (style === frameStyle) return;
+    frameImageRef.current = null;
+    setFrameReady(style === "none");
+    setFrameError(false);
+    setFrameStyle(style);
+  }
+
+  useEffect(() => {
+    let active = true;
+    const source = PHOTO_FRAMES.find(frame => frame.id === frameStyle)!.src;
+    if (!source) {
+      frameImageRef.current = null;
+      setFrameReady(true);
+      return;
+    }
+    const image = new Image();
+    image.onload = () => {
+      if (!active) return;
+      frameImageRef.current = image;
+      setFrameReady(true);
+    };
+    image.onerror = () => { if (active) setFrameError(true); };
+    image.src = source;
+    return () => { active = false; };
+  }, [frameStyle]);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach(track => track.stop());
@@ -117,6 +153,22 @@ export default function PhotoBooth() {
   useEffect(() => () => { if (stripUrl) URL.revokeObjectURL(stripUrl); }, [stripUrl]);
 
   useEffect(() => {
+    const onResize = () => {
+      if (!busyRef.current) return;
+      ++operation.current;
+      busyRef.current = false;
+      setCapturing(false);
+      setCountdown(null);
+      setFlash(false);
+      setPhotos([]);
+      setShot(0);
+      setNotice("The view changed size. Tap the shutter to start again.");
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
     const onVisibilityChange = () => {
       if (document.hidden && streamRef.current) {
         ++operation.current;
@@ -136,7 +188,7 @@ export default function PhotoBooth() {
   }, [stopCamera]);
 
   async function capture() {
-    if (busyRef.current || status !== "ready" || !videoRef.current) return;
+    if (busyRef.current || status !== "ready" || !videoRef.current || !frameReady) return;
     busyRef.current = true;
     const id = ++operation.current;
     const check = () => { if (!mountedRef.current || id !== operation.current) throw new DOMException("Capture cancelled", "AbortError"); };
@@ -147,7 +199,7 @@ export default function PhotoBooth() {
     setNotice("");
     const frames: string[] = [];
     try {
-      for (let index = 0; index < PHOTO_COUNT; index++) {
+      for (let index = 0; index < shotCount; index++) {
         setShot(index + 1);
         for (let count = 3; count > 0; count--) {
           setCountdown(count);
@@ -155,7 +207,7 @@ export default function PhotoBooth() {
         }
         setCountdown(null);
         check();
-        const frame = takePhoto(videoRef.current!, monochrome, guideRef.current?.getBoundingClientRect());
+        const frame = takePhoto(videoRef.current!, monochrome, guideRef.current?.getBoundingClientRect(), frameStyle !== "none" ? frameImageRef.current ?? undefined : undefined, frameStyle);
         frames.push(frame);
         setPhotos([...frames]);
         setFlash(true);
@@ -164,7 +216,7 @@ export default function PhotoBooth() {
         await pause(290);
       }
       const date = new Date();
-      const blob = await makeStrip(frames, date);
+      const blob = await makePhotoOutput(frames, date);
       check();
       const name = `little-moments-${date.toISOString().replace(/[:.]/g, "-")}.png`;
       fileRef.current = new File([blob], name, { type: "image/png" });
@@ -207,7 +259,7 @@ export default function PhotoBooth() {
       if (mobile && navigator.canShare?.({ files: [file] }) && navigator.share) {
         // The file is prepared before the tap, preserving iOS transient activation.
         await navigator.share({ files: [file] });
-        setNotice("Your strip is ready. Keep this little moment.");
+        setNotice("Your photo is ready. Keep this little moment.");
       } else {
         const link = document.createElement("a");
         link.href = stripUrl;
@@ -215,7 +267,7 @@ export default function PhotoBooth() {
         document.body.appendChild(link);
         link.click();
         link.remove();
-        setNotice(mobile ? "If the image opens, touch and hold it to save to Photos." : "Your photo strip has been downloaded.");
+        setNotice(mobile ? "If the image opens, touch and hold it to save to Photos." : "Your photo has been downloaded.");
       }
     } catch (cause) {
       if (!(cause instanceof DOMException && cause.name === "AbortError")) setNotice("Sharing couldn’t open. Touch and hold your strip to save it, or try Save again.");
@@ -225,22 +277,6 @@ export default function PhotoBooth() {
   const result = screen === "result";
   return (
     <main className={`booth ${result ? "is-result" : ""}`}>
-      <aside className="sidebar">
-        <a className="brand" href="/" aria-label="Little Moments home"><span className="brand-symbol"><Icon name="strip" size={27} /></span>little moments<span className="brand-dot">®</span></a>
-        <div className="editorial">
-          <div className="eyebrow"><span /> YOUR POCKET PHOTO BOOTH</div>
-          <h1>{result ? <>A moment<br />worth <em>keeping.</em></> : <>Life moves fast.<br />Keep a little<br /><em>moment.</em></>}</h1>
-          <p>{result ? "A little piece of right now. Save it, share it, or do it all over again." : "Just you, a few poses, and a keepsake to make you smile."}</p>
-          <div className="little-star">✳</div>
-        </div>
-        <div className="how-it-works">
-          <div><span>01</span><p>Find your good side</p></div>
-          <div><span>02</span><p>Strike four poses</p></div>
-          <div><span>03</span><p>Keep it forever</p></div>
-        </div>
-        <footer className="sidebar-footer"><Icon name="lock" size={13} /><span>Just between you and your camera.</span></footer>
-      </aside>
-
       <section className={`viewfinder ${result ? "result-view" : ""}`} aria-label={result ? "Your photo strip" : "Photo booth camera"}>
         <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture className={`camera-video ${status === "ready" ? "is-live" : ""} ${monochrome ? "monochrome" : ""}`} aria-label="Mirrored front camera preview" hidden={result} />
         <header className="camera-header">
@@ -250,19 +286,28 @@ export default function PhotoBooth() {
         </header>
 
         {!result && <>
-          <div className="frame-guide" ref={guideRef} aria-hidden="true"><i /><i /><i /><i /></div>
+          <div className="frame-options" role="group" aria-label="Photo frame">
+            <Link href="/meme" className="meme-entry">表情包换脸 <span>Meme Face</span><span aria-hidden="true">↗</span></Link>
+            <span className="frame-options-label">PHOTO FRAME</span>
+            <div className="frame-options-buttons">
+              {PHOTO_FRAMES.map(frame => <button key={frame.id} aria-pressed={frameStyle === frame.id} onClick={() => chooseFrame(frame.id)} disabled={capturing}>{frame.label}</button>)}
+            </div>
+            <span className="frame-options-hint" role="status">{frameError ? "Frame couldn’t load. Refresh or choose No frame." : !frameReady ? "Preparing your frame…" : selectedFrame.hint}</span>
+          </div>
+          <div className={`frame-guide ${frameStyle !== "none" && frameReady ? "has-art" : ""}`} ref={guideRef} aria-hidden="true"><i /><i /><i /><i />{frameStyle !== "none" && frameReady && <FrameOverlay image={frameImageRef.current} style={frameStyle} />}</div>
           {status !== "ready" && <div className="camera-welcome">
             <div className="camera-emblem"><Icon name="camera" size={34} /><span className="emblem-star">✧</span></div>
             <div className="eyebrow">A SMALL PAUSE. A GOOD MEMORY.</div>
             <h2>{status === "denied" ? <>Let’s let you <em>in.</em></> : status === "unavailable" ? <>A little camera <em>trouble.</em></> : status === "requesting" ? <>One little <em>second…</em></> : <>Hey, good <em>looking.</em></>}</h2>
-            <p>{status === "denied" ? "Your camera is turned off for this site. Allow camera access in your browser’s website settings, then try again." : status === "unavailable" ? error : status === "requesting" ? "Choose Allow when your browser asks to use the camera." : "A few seconds. Four photos. All you.\nTurn on your camera to get started."}</p>
+            <p>{status === "denied" ? "Your camera is turned off for this site. Allow camera access in your browser’s website settings, then try again." : status === "unavailable" ? error : status === "requesting" ? "Choose Allow when your browser asks to use the camera." : (shotCount === 1 ? "A few seconds. One photo. All you.\nTurn on your camera to get started." : "A few seconds. Four photos. All you.\nTurn on your camera to get started.")}</p>
             {status === "denied" && <div className="permission-tip">On iPhone: open Safari’s page menu → Website Settings → Camera → Allow. On a computer, use the site controls beside the address.</div>}
             <button className="enable-button" onClick={() => void startCamera()} disabled={status === "requesting"}><Icon name="camera" size={18} />{status === "requesting" ? "Opening camera…" : status === "idle" ? "Enable camera" : "Try again"}<Icon name="arrow" size={18} /></button>
             <span className="privacy-note"><Icon name="lock" size={12} /> Your photos stay on your device.</span>
           </div>}
           {countdown !== null && <div className="countdown" aria-hidden="true" key={`${shot}-${countdown}`}>{countdown}</div>}
-          <div className="capture-announcement" role="status" aria-live="polite">{capturing ? `Photo ${shot} of 4${countdown ? ` in ${countdown}` : ""}` : ""}</div>
+          <div className="capture-announcement" role="status" aria-live="polite">{capturing ? `Photo ${shot} of ${shotCount}${countdown ? ` in ${countdown}` : ""}` : ""}</div>
           <div className="camera-bottom">
+            <div className="shot-mode" role="group" aria-label="Capture mode"><button aria-pressed={shotCount === 1} disabled={capturing} onClick={() => setShotCount(1)}>单张 / Single</button><button aria-pressed={shotCount === 4} disabled={capturing} onClick={() => setShotCount(4)}>四张长条 / 4-photo strip</button></div>
             <div className="pose-hint">{capturing ? (shot === 1 ? "Here comes your first moment" : shot === 4 ? "One last pose. Make it yours." : "New pose, same lovely you.") : status === "ready" ? "Get comfy. Make a face. Be yourself." : "GOOD MEMORIES START HERE"}</div>
             {status === "ready" && error && <p className="inline-error" role="alert">{error}</p>}
             <div className="camera-controls">
@@ -275,18 +320,18 @@ export default function PhotoBooth() {
                   <option value="bw">Black & white</option>
                 </select>
               </label>
-              <button className={`shutter ${capturing ? "is-capturing" : ""}`} onClick={() => void capture()} disabled={status !== "ready" || capturing} aria-label="Take four photos"><span>{capturing ? <span className="capture-dot" /> : <Icon name="camera" size={27} />}</span></button>
-              <div className="photo-counter" aria-label={`${photos.length} of 4 photos captured`}><Icon name="strip" size={25} /><span>{String(photos.length).padStart(2, "0")} / 04</span></div>
+              <button className={`shutter ${capturing ? "is-capturing" : ""}`} onClick={() => void capture()} disabled={status !== "ready" || capturing || !frameReady} aria-label={shotCount === 1 ? "Take photo" : "Take four photos"}><span>{capturing ? <span className="capture-dot" /> : <Icon name="camera" size={27} />}</span></button>
+              <div className="photo-counter" aria-label={`${photos.length} of ${shotCount} photos captured`}><Icon name="strip" size={25} /><span>{String(photos.length).padStart(2, "0")} / {String(shotCount).padStart(2, "0")}</span></div>
             </div>
-            <div className="capture-description">4 photos <span>·</span> 3 seconds between poses</div>
+            <div className="capture-description">{shotCount === 1 ? "单张照片 / Single photo · 3-second countdown" : "四张长条 / 4 photos · 3 seconds between poses"}</div>
           </div>
-          <div className="shot-progress" aria-label="Photo progress">{Array.from({ length: 4 }, (_, i) => <span className={photos[i] ? "complete" : capturing && shot === i + 1 ? "current" : ""} key={i}>{photos[i] ? <img src={photos[i]} alt={`Captured pose ${i + 1}`} /> : String(i + 1).padStart(2, "0")}</span>)}</div>
+          <div className="shot-progress" aria-label="Photo progress">{Array.from({ length: shotCount }, (_, i) => <span className={photos[i] ? "complete" : capturing && shot === i + 1 ? "current" : ""} key={i}>{photos[i] ? <img src={photos[i]} alt={`Captured pose ${i + 1}`} /> : String(i + 1).padStart(2, "0")}</span>)}</div>
         </>}
 
         {result && <div className="result-content">
-          <div className="result-heading"><span className="eyebrow">FRESH FROM THE BOOTH</span><h2>That’s a <em>keeper.</em><Icon name="sparkle" size={27} /></h2><p>Four little moments, just for you.</p></div>
-          <div className="strip-stage"><div className="strip-tape" /><img className="photo-strip" src={stripUrl} alt="Your four photos in a vertical white-bordered photo strip" /></div>
-          <div className="result-actions"><button className="retake-button" onClick={retake} disabled={saving}><Icon name="retake" size={18} />Retake</button><button className="save-button" onClick={() => void save()} disabled={saving}><Icon name="share" size={18} />{saving ? "Opening…" : "Save strip"}</button></div>
+          <div className="result-heading"><span className="eyebrow">FRESH FROM THE BOOTH</span><h2>That’s a <em>keeper.</em><Icon name="sparkle" size={27} /></h2><p>{shotCount === 1 ? "One little moment, just for you." : "Four little moments, just for you."}</p></div>
+          <div className="strip-stage"><div className="strip-tape" /><img className="photo-strip" src={stripUrl} alt={shotCount === 1 ? "Your photo with the selected frame" : "Your four photos in a vertical white-bordered photo strip"} /></div>
+          <div className="result-actions"><button className="retake-button" onClick={retake} disabled={saving}><Icon name="retake" size={18} />Retake</button><button className="save-button" onClick={() => void save()} disabled={saving}><Icon name="share" size={18} />{saving ? "Opening…" : (shotCount === 1 ? "Save photo" : "Save strip")}</button></div>
           <p className="save-hint">On iPhone, choose “Save Image” in the share sheet.</p>
         </div>}
         {notice && <p className="notice" role="status">{notice}<button onClick={() => setNotice("")} aria-label="Dismiss message"><Icon name="close" size={15} /></button></p>}
@@ -307,9 +352,9 @@ function Help({ onClose }: { onClose: () => void }) {
   return <dialog ref={dialog} className="help-dialog" onCancel={onClose} onClick={event => { if (event.target === event.currentTarget) onClose(); }} aria-labelledby="help-title">
     <button className="dialog-close" onClick={onClose} aria-label="Close instructions"><Icon name="close" /></button>
     <Icon name="strip" size={32} /><h2 id="help-title">A booth in your pocket.</h2>
-    <p>Enable your front camera, choose Color or Black &amp; white in the Filter control, tap the round shutter, and strike four poses. Each photo gets a 3-second countdown. Your selected filter applies to the preview and all four saved photos.</p>
+    <p>Enable your front camera, choose a photo frame and Color or Black &amp; white, then tap the shutter and strike four poses. Choose Single (the default) or a four-photo strip. Each photo gets a 3-second countdown. Everything inside the corner guide, including your illustrated frame, is saved in all four photos. Black &amp; white changes the camera image while keeping the frame colorful.</p>
     <h3>Make yourself at home</h3><p>On iPhone, open this app in Safari, tap Share, then <strong>Add to Home Screen</strong>. Open the new icon for the full-screen experience.</p>
-    <h3>Keep your moment</h3><p>Tap <strong>Save strip</strong> and choose <strong>Save Image</strong> on iPhone. On a computer, your strip downloads as a PNG.</p>
+    <h3>Keep your moment</h3><p>Tap <strong>Save photo</strong> or <strong>Save strip</strong> and choose <strong>Save Image</strong> on iPhone. On a computer, your strip downloads as a PNG.</p>
     <p className="help-privacy"><Icon name="lock" size={15} /> Photos are created on your device and never uploaded.</p>
     <button className="save-button" onClick={onClose}>Got it<Icon name="arrow" size={18} /></button>
   </dialog>;
