@@ -20,14 +20,14 @@ npm run build
 
 ## Use / 使用
 
-1. Enable the front camera. / 开启前置摄像头。
+1. Enable the camera; the photo booth prefers the rear camera. / 开启相机，拍照亭默认优先使用后置摄像头。
 2. Choose Single (default) or a four-photo strip, then tap the shutter. Each shot gets a 3–2–1 countdown and a white flash. / 默认单张，也可选择四张长条；每次拍摄有 3–2–1 倒计时及白色闪光。
 3. Save the white-bordered PNG strip. On supported phones, Save opens the native file share sheet; choose Save Image on iPhone. Computers download the PNG. / 保存白边 PNG 照片条；支持的手机会打开系统分享菜单，iPhone 可选择“存储图像”；电脑直接下载。
 4. Retake starts a new camera session. / 点击 Retake 重新拍摄。
 
 The site opens directly in the camera screen with no white introduction sidebar. Choose **No frame**, **Dungeon feast**, **These two**, or **小猪 / Pig** above the preview. The illustrated food-adventure frame is included in each saved photo; Black & white affects the camera photo while the frame stays colorful. / 网站直接进入拍照界面，无白色介绍侧栏。可在预览上方选择“无相框”、“Dungeon feast（迷宫饭美食主题）”、“These two（原图两个人物）”或“小猪 / Pig”；相框会保存在每张照片里，黑白滤镜仅影响相机照片，相框保持彩色。
 
-The preview is mirrored. On desktop, the frame fills the camera panel. On phones, the camera is 9:16 portrait and the frame fills all four edges. Saved photos match the full preview; the strip keeps each photo’s aspect ratio. Color / B&W applies to all four shots. Switching away stops the camera and cancels an unfinished sequence. Photos are never uploaded or stored on a server. / 预览为镜像；电脑相框贴合拍摄区域四边，手机为 9:16 竖屏，相框与成片构图一致；支持彩色和黑白。切换离开页面会停止相机并取消未完成的拍摄。照片不会上传或保存在服务器。
+Rear-camera previews and saved photos keep their natural orientation. A front-camera fallback uses a mirrored selfie preview and matching capture. On desktop, the frame fills the camera panel. On phones, the camera is 9:16 portrait and the frame fills all four edges. Saved photos match the full preview; the strip keeps each photo’s aspect ratio. Color / B&W applies to all four shots. Switching away stops the camera and cancels an unfinished sequence. Photos are never uploaded or stored on a server. / 后置预览与成片保持正常方向，回退到前置摄像头时使用镜像自拍；电脑相框贴合拍摄区域四边，手机为 9:16 竖屏，相框与成片构图一致；支持彩色和黑白。切换离开页面会停止相机并取消未完成的拍摄。照片不会上传或保存在服务器。
 
 ## iPhone / 安装到 iPhone
 

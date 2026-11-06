@@ -109,3 +109,6 @@ html,body{background:#1c211c}
 .frame-options-buttons{max-width:100%;overflow-x:auto;scrollbar-width:none}
 .frame-options-buttons::-webkit-scrollbar{display:none}
 .frame-options-buttons button{flex-shrink:0}
+/* Rear-camera scenes keep their natural left/right orientation. */
+.camera-video{transform:none}
+.camera-video.is-mirrored{transform:scaleX(-1)}

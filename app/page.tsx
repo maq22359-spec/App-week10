@@ -34,6 +34,7 @@ export default function PhotoBooth() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [flash, setFlash] = useState(false);
   const [monochrome, setMonochrome] = useState(false);
+  const [mirrored, setMirrored] = useState(false);
   const [frameStyle, setFrameStyle] = useState<FrameStyle>("pig");
   const [frameReady, setFrameReady] = useState(false);
   const [frameError, setFrameError] = useState(false);
@@ -98,13 +99,14 @@ export default function PhotoBooth() {
       }
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1440 } },
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } },
       });
       if (!mountedRef.current || id !== operation.current) {
         stream.getTracks().forEach(track => track.stop());
         return;
       }
       streamRef.current = stream;
+      setMirrored(stream.getVideoTracks()[0].getSettings().facingMode === "user");
       const video = videoRef.current;
       if (!video) { stopCamera(); return; }
       video.srcObject = stream;
@@ -207,7 +209,7 @@ export default function PhotoBooth() {
         }
         setCountdown(null);
         check();
-        const frame = takePhoto(videoRef.current!, monochrome, guideRef.current?.getBoundingClientRect(), frameStyle !== "none" ? frameImageRef.current ?? undefined : undefined, frameStyle);
+        const frame = takePhoto(videoRef.current!, monochrome, guideRef.current?.getBoundingClientRect(), frameStyle !== "none" ? frameImageRef.current ?? undefined : undefined, frameStyle, mirrored);
         frames.push(frame);
         setPhotos([...frames]);
         setFlash(true);
@@ -278,7 +280,7 @@ export default function PhotoBooth() {
   return (
     <main className={`booth ${result ? "is-result" : ""}`}>
       <section className={`viewfinder ${result ? "result-view" : ""}`} aria-label={result ? "Your photo strip" : "Photo booth camera"}>
-        <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture className={`camera-video ${status === "ready" ? "is-live" : ""} ${monochrome ? "monochrome" : ""}`} aria-label="Mirrored front camera preview" hidden={result} />
+        <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture className={`camera-video ${status === "ready" ? "is-live" : ""} ${monochrome ? "monochrome" : ""} ${mirrored ? "is-mirrored" : ""}`} aria-label="Camera preview" hidden={result} />
         <header className="camera-header">
           <span className="mobile-brand">little moments<span>®</span></span>
           <span className="camera-label"><span className={`status-dot ${status === "ready" ? "live" : ""}`} />{result ? "A LITTLE KEEPSAKE" : status === "ready" ? "LIVE CAMERA" : "THE PHOTO BOOTH"}</span>
@@ -352,7 +354,7 @@ function Help({ onClose }: { onClose: () => void }) {
   return <dialog ref={dialog} className="help-dialog" onCancel={onClose} onClick={event => { if (event.target === event.currentTarget) onClose(); }} aria-labelledby="help-title">
     <button className="dialog-close" onClick={onClose} aria-label="Close instructions"><Icon name="close" /></button>
     <Icon name="strip" size={32} /><h2 id="help-title">A booth in your pocket.</h2>
-    <p>Enable your front camera, choose a photo frame and Color or Black &amp; white, then tap the shutter and strike four poses. Choose Single (the default) or a four-photo strip. Each photo gets a 3-second countdown. Everything inside the corner guide, including your illustrated frame, is saved in all four photos. Black &amp; white changes the camera image while keeping the frame colorful.</p>
+    <p>Enable your camera. The photo booth uses the rear camera by default. Choose a photo frame and Color or Black &amp; white, then choose Single (the default) or a four-photo strip. Each photo gets a 3-second countdown. Your selected frame is saved in every photo. Black &amp; white changes the camera image while keeping the frame colorful.</p>
     <h3>Make yourself at home</h3><p>On iPhone, open this app in Safari, tap Share, then <strong>Add to Home Screen</strong>. Open the new icon for the full-screen experience.</p>
     <h3>Keep your moment</h3><p>Tap <strong>Save photo</strong> or <strong>Save strip</strong> and choose <strong>Save Image</strong> on iPhone. On a computer, your strip downloads as a PNG.</p>
     <p className="help-privacy"><Icon name="lock" size={15} /> Photos are created on your device and never uploaded.</p>

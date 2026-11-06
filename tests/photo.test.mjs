@@ -185,3 +185,21 @@ test('single-photo mode exports the original image dimensions without a strip bo
     assert.equal(canvas.height,1920);
   } finally {globalThis.document=previousDocument;globalThis.Image=previousImage;}
 });
+
+test('rear-camera guides retain the original source side instead of mirroring it', () => {
+  const crop = previewCrop(1200,900,{left:0,top:0,width:1200,height:900},{left:100,top:200,width:400,height:300},false);
+  assert.deepEqual(crop,{x:100,y:200,width:400,height:300});
+});
+
+test('rear-camera photo capture keeps left/right orientation without a selfie transform', () => {
+  const calls=[];
+  const ctx={translate(...args){calls.push(['translate',...args]);},scale(...args){calls.push(['scale',...args]);},drawImage(...args){calls.push(['draw',...args]);}};
+  const previousDocument=globalThis.document;
+  globalThis.document={createElement:()=>({getContext:()=>ctx,toDataURL:()=> 'rear-photo'})};
+  const video={videoWidth:1200,videoHeight:900,readyState:4,getBoundingClientRect:()=>({left:0,top:0,width:1200,height:900})};
+  try {
+    assert.equal(takePhoto(video,false,{left:100,top:200,width:400,height:300},undefined,'none',false),'rear-photo');
+    assert.equal(calls.filter(call=>call[0]==='translate'||call[0]==='scale').length,0);
+    assert.deepEqual(calls[0].slice(2),[100,200,400,300,0,0,1080,810]);
+  } finally {globalThis.document=previousDocument;}
+});

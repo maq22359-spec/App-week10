@@ -15,21 +15,22 @@ export function cropFrame(sourceWidth: number, sourceHeight: number) {
   return { x: (sourceWidth - width) / 2, y: (sourceHeight - height) / 2, width, height };
 }
 
-export function previewCrop(sourceWidth: number, sourceHeight: number, preview: Pick<DOMRect, "left" | "top" | "width" | "height">, guide: Pick<DOMRect, "left" | "top" | "width" | "height">) {
+export function previewCrop(sourceWidth: number, sourceHeight: number, preview: Pick<DOMRect, "left" | "top" | "width" | "height">, guide: Pick<DOMRect, "left" | "top" | "width" | "height">, mirrored = true) {
   const scale = Math.max(preview.width / sourceWidth, preview.height / sourceHeight);
   const overflowX = (sourceWidth * scale - preview.width) / 2;
   const overflowY = (sourceHeight * scale - preview.height) / 2;
   const width = guide.width / scale;
   const height = guide.height / scale;
+  const sourceX = (guide.left - preview.left + overflowX) / scale;
   return {
-    x: sourceWidth - (guide.left - preview.left + overflowX) / scale - width,
+    x: mirrored ? sourceWidth - sourceX - width : sourceX,
     y: (guide.top - preview.top + overflowY) / scale,
     width,
     height,
   };
 }
 
-export function takePhoto(video: HTMLVideoElement, monochrome: boolean, guide?: DOMRect, frame?: HTMLImageElement, style: FrameStyle = "dungeon"): string {
+export function takePhoto(video: HTMLVideoElement, monochrome: boolean, guide?: DOMRect, frame?: HTMLImageElement, style: FrameStyle = "dungeon", mirrored = true): string {
   if (!video.videoWidth || !video.videoHeight || video.readyState < 2) {
     throw new Error("The camera paused. Please try again.");
   }
@@ -39,9 +40,11 @@ export function takePhoto(video: HTMLVideoElement, monochrome: boolean, guide?: 
   canvas.height = outputHeight;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Your browser could not create the photo.");
-  const crop = guide ? previewCrop(video.videoWidth, video.videoHeight, video.getBoundingClientRect(), guide) : cropFrame(video.videoWidth, video.videoHeight);
-  ctx.translate(PHOTO_WIDTH, 0);
-  ctx.scale(-1, 1);
+  const crop = guide ? previewCrop(video.videoWidth, video.videoHeight, video.getBoundingClientRect(), guide, mirrored) : cropFrame(video.videoWidth, video.videoHeight);
+  if (mirrored) {
+    ctx.translate(PHOTO_WIDTH, 0);
+    ctx.scale(-1, 1);
+  }
   ctx.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, PHOTO_WIDTH, outputHeight);
   // Pixel conversion also works on Safari versions without canvas filter support.
   if (monochrome) {
